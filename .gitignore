@@ -1,0 +1,13 @@
+# Local configuration
+conf.json
+
+# Saved csvs
+csvs/
+ 
+# Python temp files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Vim temp files
+*.swp
