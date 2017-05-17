@@ -22,7 +22,7 @@ class Admission(Enum):
     ALWAYS = 'Always'
     TINY_LFU = 'TinyLfu'
 
-def single_run(policy, trace, size=4, changes={}, name=None, save=False, reuse=False, verbose=False):
+def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=False, verbose=False):
     name = name if name else policy
     policy = Policy[policy]
     trace = Trace[trace]
@@ -117,26 +117,26 @@ class Tools(object):
             print('|{:^15}|{:^65}| '.format(trace.name,str(trace.typical_caches())[1:-1]))
         print('-'*83)
 
-    def run(self, policy, trace, size=4, changes={}, name=None, save=False, reuse=False, verbose=False):
+    def run(self, policy, trace, size=4, changes={}, name=None, save=True, reuse=False, verbose=False):
         res = single_run(policy, trace, size, changes, name, save, reuse, verbose)
         print('The hit rate of {} on {} with cache size of {} is: {}%'
                 .format(name if name else policy, trace, size if size > 8 else Trace[trace].typical_caches()[size-1], res))
 
-    def battle(self, policy1, policy2, changes1={}, changes2={}, name1=None, name2=None, save=False, reuse=False, verbose=False, rfr=False):
-        self.compare(policies=[policy1, policy2], changes=[changes1, changes2], names=[name1, name2], save=save, reuse=reuse, verbose=verbose, rfr=rfr)
+    def battle(self, policy1, policy2, changes1={}, changes2={}, name1=None, name2=None, save=True, reuse=False, verbose=False, rfo=False):
+        self.compare(policies=[policy1, policy2], changes=[changes1, changes2], names=[name1, name2], save=save, reuse=reuse, verbose=verbose, rfo=rfo)
 
-    def compare(self, policies, changes=None, names=None, save=False, reuse=False, verbose=False, rfr=False):
+    def compare(self, policies, changes=None, names=None, save=True, reuse=False, verbose=False, rfo=False):
         if not changes:
             changes = [{}]*len(policies)
         if not names:
             names = policies
         policies_wins = [0]*len(policies)
 
-        columns = 3 + len(policies) + (1 if rfr else 0)
+        columns = 3 + len(policies) + (1 if rfo else 0)
         line = ' ' + '-'*(16 * columns - 1)
         text ='|' + '{:^15}|'*columns 
         print(line)
-        headers = ['Trace','Cache Size'] + (['(LRU-LFU)/OPT'] if rfr else []) 
+        headers = ['Trace','Cache Size'] + (['(LRU-LFU)/OPT'] if rfo else []) 
         print(text.format(*headers, *names, 'Difference'))
         print(line)
 
@@ -144,13 +144,12 @@ class Tools(object):
             for size in range(1,1+8):
                 policies_hr = [ single_run(policy, trace.name, size, change, name, save, reuse, verbose) \
                                 for policy, change, name in zip(policies, changes, names)]
-                texts = [trace.name, trace.typical_caches()[size-1]] + (['{:2.2f}'.format(rf_rank(trace, size))] if rfr else []) + \
+                texts = [trace.name, trace.typical_caches()[size-1]] + (['{:2.2f}'.format(rf_rank(trace, size))] if rfo else []) + \
                         ['{:2.2f}%'.format(policy_hr) for policy_hr in policies_hr] + ['{:2.2f}%'.format(max(policies_hr)-min(policies_hr))]
-                #:2.2f}%'.format(policy1_hr) if policy1_hr > policy2_hr else '', 
                 min_index = policies_hr.index(min(policies_hr))
                 max_index = policies_hr.index(max(policies_hr))
                 
-                offset = 2 + (1 if rfr else 0)
+                offset = 2 + (1 if rfo else 0)
                 texts[offset + min_index] = ''
                 texts[offset + max_index] = '\N{CHECK MARK} ' + texts[offset + max_index] 
 
@@ -164,7 +163,7 @@ class Tools(object):
                     policies_wins[max_index] += 1
 
         print(line)
-        print(text.format(*(['']*(1 + (1 if rfr else 0))),'Total Wins:', *policies_wins, ''))
+        print(text.format(*(['']*(1 + (1 if rfo else 0))),'Total Wins:', *policies_wins, ''))
         print(line)
 
 if __name__ == '__main__':
