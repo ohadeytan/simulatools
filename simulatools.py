@@ -105,17 +105,30 @@ class Tools(object):
         for trace in traces:
             download_single_trace(trace, path)
 
-    def list_traces(self):
+    def list_traces(self, sizes=False):
         """
         Print all the avaliable traces.
         """
         print('Avaliable traces are:')
-        print('-'*83)
-        print('|{:^15}|{:^65}|'.format('Trace Name','Typical Cache Sizes'))
-        print('-'*83)
+        line = ' ' + '-'*(66 + 16 * (2 if sizes else 1) - 1)
+        text ='|{:^15}|{:^65}|' + ('' if not sizes else '{:^15}|') 
+        headers = ['Trace Name','Typical Cache Sizes'] + ([] if not sizes else ['Size']) 
+        print(line)
+        print(text.format(*headers))
+        print(line)
         for trace in Trace:
-            print('|{:^15}|{:^65}| '.format(trace.name,str(trace.typical_caches())[1:-1]))
-        print('-'*83)
+            texts = [trace.name, str(trace.typical_caches())[1:-1]]
+            if sizes:
+                working_path = os.getcwd() + os.sep + 'csvs' + os.sep;
+                try:
+                    with open(working_path + '{}-{}-{}.csv'.format(trace.name,trace.typical_caches()[0],'lru'), 'r') as csvfile:
+                        reader = csv.DictReader(csvfile)
+                        result = int(next(reader)['Requests'])
+                        texts.append('{:,}'.format(result))
+                except:
+                    texts.append('no lru csv')
+            print(text.format(*texts))
+        print(line)
 
     def run(self, policy, trace, size=4, changes={}, name=None, save=True, reuse=False, verbose=False):
         res = single_run(policy, trace, size, changes, name, save, reuse, verbose)

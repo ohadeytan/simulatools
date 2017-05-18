@@ -4,6 +4,9 @@ conf.json
 # Saved csvs
 csvs/
  
+# Saved results
+*.txt
+ 
 # Python temp files
 __pycache__/
 *.py[cod]
