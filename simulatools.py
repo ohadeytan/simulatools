@@ -17,6 +17,9 @@ import pickle
 
 with open('conf.json') as conf_file:
     local_conf = json.load(conf_file)
+caffeine_root = local_conf['caffeine_root']
+resources_path = local_conf['resources'] if local_conf['resources'] else caffeine_root + 'simulator{0}src{0}main{0}resources{0}com{0}github{0}benmanes{0}caffeine{0}cache{0}simulator{0}parser{0}'.format(os.sep)
+output_path = local_conf['output'] if local_conf['output'] else os.getcwd() + os.sep
 
 class Admission(Enum):
     ALWAYS = 'Always'
@@ -28,11 +31,11 @@ def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=Fa
     trace = Trace[trace]
     if 0 < size < 9:
         size = trace.typical_caches()[size-1]
-    conf_path = local_conf['caffeine_root'] + 'simulator' + os.sep + 'src' + os.sep + 'main' + os.sep + 'resources' + os.sep
+    conf_path = caffeine_root + 'simulator{0}src{0}main{0}resources{0}'.format(os.sep)
     conf_file = conf_path + 'application.conf'
-    working_path = os.getcwd() + os.sep + 'csvs' + os.sep;
-    if not os.path.exists(working_path):
-        os.makedirs(working_path)
+    output_csvs_path = output_path + 'csvs' + os.sep
+    if not os.path.exists(output_csvs_path):
+        os.makedirs(output_csvs_path)
     run_simulator = './gradlew simulator:run'
     if os.path.exists(conf_file):
         conf = ConfigFactory.parse_file(conf_file)
@@ -44,14 +47,14 @@ def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=Fa
                                           }
                                           """)
     simulator = conf['caffeine']['simulator']
-    simulator.put('files.paths', [ local_conf['caffeine_root'] + 'simulator/src/main/resources/com/github/benmanes/caffeine/cache/simulator/parser/'.replace('/',os.sep) + trace.format() + os.sep + trace.file() ])
+    simulator.put('files.paths', [ resources_path + trace.format() + os.sep + trace.file() ])
              
     simulator.put('files.format', trace.value['format'])
     simulator.put('maximum-size', size)
     simulator.put('policies', [ policy.value ])
     simulator.put('admission', [ Admission.ALWAYS.value ])
     simulator.put('report.format', 'csv')
-    simulator.put('report.output', working_path + '{}-{}-{}.csv'.format(trace.name,size,name))
+    simulator.put('report.output', output_csvs_path + '{}-{}-{}.csv'.format(trace.name,size,name))
 
     for k,v in changes.items():
         simulator.put(k,v)
@@ -59,7 +62,7 @@ def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=Fa
     with open(conf_file, 'w') as f:
         f.write(HOCONConverter.to_hocon(conf))
     if not reuse or not os.path.isfile(simulator['report']['output']):
-        call(run_simulator, shell = True, cwd = local_conf['caffeine_root'], stdout = subprocess.DEVNULL if not verbose else None)
+        call(run_simulator, shell = True, cwd = caffeine_root, stdout = subprocess.DEVNULL if not verbose else None)
     with open(simulator['report']['output'], 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         result = float(next(reader)['Hit rate'])
@@ -69,8 +72,7 @@ def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=Fa
 
 def download_single_trace(trace, path=None):
         if not path:
-            path = local_conf['caffeine_root'] + \
-                   'simulator/src/main/resources/com/github/benmanes/caffeine/cache/simulator/parser'.replace('/',os.sep) 
+            path = resources_path
         if path[-1] != os.sep:
             path += os.sep
         if not os.path.exists(path + trace.format()):
@@ -119,9 +121,8 @@ class Tools(object):
         for trace in Trace:
             texts = [trace.name, str(trace.typical_caches())[1:-1]]
             if sizes:
-                working_path = os.getcwd() + os.sep + 'csvs' + os.sep;
                 try:
-                    with open(working_path + '{}-{}-{}.csv'.format(trace.name,trace.typical_caches()[0],'lru'), 'r') as csvfile:
+                    with open(output_csvs_path + '{}-{}-{}.csv'.format(trace.name,trace.typical_caches()[0],'lru'), 'r') as csvfile:
                         reader = csv.DictReader(csvfile)
                         result = int(next(reader)['Requests'])
                         texts.append('{:,}'.format(result))
