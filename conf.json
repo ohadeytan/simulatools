@@ -1,3 +1,5 @@
 {
-	"caffeine_root" : "/home/username/caffeine/"
+	"caffeine_root" : "/home/username/caffeine/",
+	"resources" : "",
+	"output" : ""
 }
