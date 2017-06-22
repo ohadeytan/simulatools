@@ -15,11 +15,12 @@ from pprint import pprint
 import matplotlib.pyplot as plt
 import pickle
 
-with open('conf.json') as conf_file:
+with open(os.path.join(os.path.dirname(__file__), 'conf.json')) as conf_file:
     local_conf = json.load(conf_file)
 caffeine_root = local_conf['caffeine_root']
 resources_path = local_conf['resources'] if local_conf['resources'] else caffeine_root + 'simulator{0}src{0}main{0}resources{0}com{0}github{0}benmanes{0}caffeine{0}cache{0}simulator{0}parser{0}'.format(os.sep)
 output_path = local_conf['output'] if local_conf['output'] else os.getcwd() + os.sep
+output_csvs_path = output_path + 'csvs' + os.sep
 
 class Admission(Enum):
     ALWAYS = 'Always'
@@ -33,7 +34,6 @@ def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=Fa
         size = trace.typical_caches()[size-1]
     conf_path = caffeine_root + 'simulator{0}src{0}main{0}resources{0}'.format(os.sep)
     conf_file = conf_path + 'application.conf'
-    output_csvs_path = output_path + 'csvs' + os.sep
     if not os.path.exists(output_csvs_path):
         os.makedirs(output_csvs_path)
     run_simulator = './gradlew simulator:run'
@@ -122,7 +122,7 @@ class Tools(object):
             texts = [trace.name, str(trace.typical_caches())[1:-1]]
             if sizes:
                 try:
-                    with open(output_csvs_path + '{}-{}-{}.csv'.format(trace.name,trace.typical_caches()[0],'lru'), 'r') as csvfile:
+                    with open(output_csvs_path + '{}-{}-{}.csv'.format(trace.name,trace.typical_caches()[0], 'lru'), 'r') as csvfile:
                         reader = csv.DictReader(csvfile)
                         result = int(next(reader)['Requests'])
                         texts.append('{:,}'.format(result))
@@ -136,10 +136,10 @@ class Tools(object):
         print('The hit rate of {} on {} with cache size of {} is: {}%'
                 .format(name if name else policy, trace, size if size > 8 else Trace[trace].typical_caches()[size-1], res))
 
-    def battle(self, policy1, policy2, changes1={}, changes2={}, name1=None, name2=None, save=True, reuse=False, verbose=False, rfo=False):
-        self.compare(policies=[policy1, policy2], changes=[changes1, changes2], names=[name1, name2], save=save, reuse=reuse, verbose=verbose, rfo=rfo)
+    def battle(self, policy1, policy2, changes1={}, changes2={}, name1=None, name2=None, save=True, reuse=False, verbose=False, rfo=False, filt=None, losers=False):
+        self.compare(policies=[policy1, policy2], changes=[changes1, changes2], names=[name1, name2], save=save, reuse=reuse, verbose=verbose, rfo=rfo, filt=filt, losers=losers)
 
-    def compare(self, policies, changes=None, names=None, save=True, reuse=False, verbose=False, rfo=False):
+    def compare(self, policies, changes=None, names=None, save=True, reuse=False, verbose=False, rfo=False, filt=None, losers=False):
         if not changes:
             changes = [{}]*len(policies)
         if not names:
@@ -160,14 +160,19 @@ class Tools(object):
                                 for policy, change, name in zip(policies, changes, names)]
                 texts = [trace.name, trace.typical_caches()[size-1]] + (['{:2.2f}'.format(rf_rank(trace, size))] if rfo else []) + \
                         ['{:2.2f}%'.format(policy_hr) for policy_hr in policies_hr] + ['{:2.2f}%'.format(max(policies_hr)-min(policies_hr))]
+
+                if (filt and (abs(min(policies_hr) - max(policies_hr)) < filt)):
+                    continue
+
                 min_index = policies_hr.index(min(policies_hr))
                 max_index = policies_hr.index(max(policies_hr))
                 
                 offset = 2 + (1 if rfo else 0)
-                texts[offset + min_index] = ''
+                if not losers:
+                    texts[offset + min_index] = ''
                 texts[offset + max_index] = '\N{CHECK MARK} ' + texts[offset + max_index] 
 
-                if min_index == max_index:
+                if min_index == max_index and not losers:
                     for i in range(len(policies_hr)):
                         texts[offset + i] = ''
 
