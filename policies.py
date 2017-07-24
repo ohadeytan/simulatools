@@ -5,3 +5,4 @@ class Policy(Enum):
     lru =   'linked.Lru'
     lfu =   'linked.Lfu'
     wtlfu = 'sketch.WindowTinyLfu'
+    hc =    'sketch.HillClimberWindowTinyLfu'
