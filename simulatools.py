@@ -26,7 +26,7 @@ class Admission(Enum):
     ALWAYS = 'Always'
     TINY_LFU = 'TinyLfu'
 
-def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=False, verbose=False):
+def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=False, verbose=False, readonly=False):
     name = name if name else policy
     policy = Policy[policy]
     trace = Trace[trace]
@@ -36,7 +36,8 @@ def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=Fa
     conf_file = conf_path + 'application.conf'
     if not os.path.exists(output_csvs_path):
         os.makedirs(output_csvs_path)
-    run_simulator = './gradlew simulator:run'
+    run_simulator = './gradlew simulator:run -x caffeine:compileJava -x caffeine:compileCodeGenJava'
+#   run_simulator = './gradlew simulator:run'
     if os.path.exists(conf_file):
         conf = ConfigFactory.parse_file(conf_file)
     else:
@@ -61,7 +62,7 @@ def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=Fa
 
     with open(conf_file, 'w') as f:
         f.write(HOCONConverter.to_hocon(conf))
-    if not reuse or not os.path.isfile(simulator['report']['output']):
+    if (not reuse or not os.path.isfile(simulator['report']['output'])) and not readonly:
         call(run_simulator, shell = True, cwd = caffeine_root, stdout = subprocess.DEVNULL if not verbose else None)
     with open(simulator['report']['output'], 'r') as csvfile:
         reader = csv.DictReader(csvfile)
@@ -140,9 +141,9 @@ class Tools(object):
         self.compare(policies=[policy1, policy2], changes=[changes1, changes2], names=[name1, name2], save=save, reuse=reuse, verbose=verbose, rfo=rfo, filt=filt, losers=losers)
 
     def compare(self, policies, changes=None, names=None, save=True, reuse=False, verbose=False, rfo=False, filt=None, losers=False):
-        if not changes:
+        if not changes or not changes[0]:
             changes = [{}]*len(policies)
-        if not names:
+        if not names or not names[0]:
             names = policies
         policies_wins = [0]*len(policies)
 
