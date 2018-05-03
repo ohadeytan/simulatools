@@ -66,10 +66,10 @@ def single_run(policy, trace, size=4, changes={}, name=None, save=True, reuse=Fa
         call(run_simulator, shell = True, cwd = caffeine_root, stdout = subprocess.DEVNULL if not verbose else None)
     with open(simulator['report']['output'], 'r') as csvfile:
         reader = csv.DictReader(csvfile)
-        result = float(next(reader)['Hit rate'])
+        results = { line['Policy'] : float(line['Hit rate']) for line in reader }
     if not save:
         os.remove(simulator['report']['output'])
-    return result
+    return results if len(results) != 1 else results[0]
 
 def download_single_trace(trace, path=None):
         if not path:
